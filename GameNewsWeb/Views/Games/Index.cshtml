@@ -1,0 +1,42 @@
+﻿@model IEnumerable<GameNewsWeb.Models.Game>
+@{
+    ViewData["Title"] = "Каталог игр — GameNews";
+}
+
+<div class="container" style="display:flex; gap:24px;">
+    <aside style="min-width:260px;">
+        <form method="get">
+            <legend>Фильтры</legend>
+            <div style="margin-bottom:12px;">
+                <label for="search">Поиск по названию</label>
+                <input type="text" id="search" name="search" value="@ViewBag.Search" />
+
+                <select id="genre" name="genre">
+                    <option value="">Все жанры</option>
+                    <option value="RPG" @(ViewBag.Genre == "RPG" ? "selected" : "")>RPG</option>
+                    <option value="Shooter" @(ViewBag.Genre == "Shooter" ? "selected" : "")>Шутер</option>
+                    <option value="MOBA" @(ViewBag.Genre == "MOBA" ? "selected" : "")>MOBA</option>
+                    <option value="Action" @(ViewBag.Genre == "Action" ? "selected" : "")>Action</option>
+                </select>
+            </div>
+            <button type="submit">Применить</button>
+        </form>
+    </aside>
+
+    <section style="flex:1;">
+        <div class="games-catalog" style="display:flex; gap:32px; flex-wrap:wrap;">
+            @foreach (var game in Model)
+            {
+                <div class="card">
+                    <a href="#">
+                        <img src="@game.ImageUrl" alt="@game.Title" width="200" height="260" style="object-fit:cover; display:block;" />
+                    </a>
+                    <div>
+                        <span>@game.Rating</span>
+                        <span>@(game.Price > 0 ? game.Price + " рублей" : "Бесплатно")</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</div>
