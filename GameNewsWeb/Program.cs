@@ -1,22 +1,55 @@
 using GameNewsWeb.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var databasePrivateUrl = Environment.GetEnvironmentVariable("DATABASE_PRIVATE_URL");
 var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? Environment.GetEnvironmentVariable("PGHOST");
 var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
 var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? Environment.GetEnvironmentVariable("PGDATABASE");
 var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? Environment.GetEnvironmentVariable("PGUSER");
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? Environment.GetEnvironmentVariable("PGPASSWORD");
 
+static string BuildNpgsqlConnectionStringFromUrl(string url)
+{
+    if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+    {
+        return url;
+    }
+
+    if (uri.Scheme is not ("postgres" or "postgresql"))
+    {
+        return url;
+    }
+
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+    var database = uri.AbsolutePath.Trim('/');
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = database,
+        Username = username,
+        Password = password,
+        SslMode = SslMode.Require
+    };
+
+    return builder.ConnectionString;
+}
+
 // Railway/production: use PostgreSQL from env vars.
 // Local dev fallback: keep SQL Server connection from appsettings.
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    var postgresUrl = !string.IsNullOrWhiteSpace(databasePrivateUrl) ? databasePrivateUrl : databaseUrl;
+    if (!string.IsNullOrWhiteSpace(postgresUrl))
     {
-        options.UseNpgsql(databaseUrl);
+        options.UseNpgsql(BuildNpgsqlConnectionStringFromUrl(postgresUrl));
         return;
     }
 
@@ -25,7 +58,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         !string.IsNullOrWhiteSpace(dbUser))
     {
         var postgresConnectionString =
-            $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Require;Trust Server Certificate=true";
+            $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Require";
         options.UseNpgsql(postgresConnectionString);
         return;
     }
