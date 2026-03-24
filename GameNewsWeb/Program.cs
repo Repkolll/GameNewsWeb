@@ -69,9 +69,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod());
+        policy
+            .WithOrigins(
+                "https://<frontend-domain>.up.railway.app"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod());
 });
 // MVC (контроллеры + представления)
 builder.Services.AddControllersWithViews();
