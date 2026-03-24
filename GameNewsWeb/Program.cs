@@ -68,11 +68,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    var allowedOriginsFromEnv = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+    var allowedOrigins = string.IsNullOrWhiteSpace(allowedOriginsFromEnv)
+        ? new[]
+        {
+            "https://html-production-2494.up.railway.app",
+            "http://localhost:3000",
+            "http://127.0.0.1:5500"
+        }
+        : allowedOriginsFromEnv
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(origin => origin.TrimEnd('/'))
+            .ToArray();
+
+    options.AddPolicy("FrontendCors", policy =>
         policy
-            .WithOrigins(
-                "https://<frontend-domain>.up.railway.app"
-            )
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
@@ -103,9 +114,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseCors();
 
 app.UseRouting();
+app.UseCors("FrontendCors");
 
 app.UseAuthorization();
 
