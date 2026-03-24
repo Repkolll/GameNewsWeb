@@ -3,9 +3,35 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DbContext
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? Environment.GetEnvironmentVariable("PGHOST");
+var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
+var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? Environment.GetEnvironmentVariable("PGDATABASE");
+var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? Environment.GetEnvironmentVariable("PGUSER");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? Environment.GetEnvironmentVariable("PGPASSWORD");
+
+// Railway/production: use PostgreSQL from env vars.
+// Local dev fallback: keep SQL Server connection from appsettings.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        options.UseNpgsql(databaseUrl);
+        return;
+    }
+
+    if (!string.IsNullOrWhiteSpace(dbHost) &&
+        !string.IsNullOrWhiteSpace(dbName) &&
+        !string.IsNullOrWhiteSpace(dbUser))
+    {
+        var postgresConnectionString =
+            $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Require;Trust Server Certificate=true";
+        options.UseNpgsql(postgresConnectionString);
+        return;
+    }
+
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
 builder.Services.AddCors(options =>
 {
@@ -39,5 +65,11 @@ app.MapControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Games}/{action=Index}/{id?}");
+
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    app.Urls.Add($"http://*:{port}");
+}
 
 app.Run();
